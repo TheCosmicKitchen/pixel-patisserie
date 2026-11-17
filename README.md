@@ -1,0 +1,41 @@
+<div align="center">
+
+# 🥐 Pixel Patisserie 🧁
+
+*Every sprite we bake for the game, fresh out of the oven.*
+
+**[See the menu →](https://thecosmickitchen.github.io/pixel-patisserie/)**
+
+</div>
+
+---
+
+## Our Menu
+
+| | Treat | File |
+|:-:|---|---|
+| <img src="Art/oven8.png" width="96" alt="Oven"> | **Oven #8** | [`Art/oven8.png`](Art/oven8.png) |
+
+## Rotating Specials
+
+*Nothing moving yet.*
+
+## Adding a new treat
+
+```
+Art/
+├── oven8.png            ← a still: any image directly in Art/
+└── whisk/               ← an animation: one subfolder per animation
+    ├── whisk1.png          frames play in filename order,
+    ├── whisk2.png          numbers sorted properly (2 before 10)
+    └── …
+```
+
+- **Still:** drop the image (PNG, GIF, WebP…) straight into `Art/`.
+- **Animation:** make a folder in `Art/` named after the animation, and put its frames in it numbered in order (`whisk1.png`, `whisk2.png`, … `whisk10.png`).
+
+Push, and it shows up on the menu by itself: stills under *Our Menu*, animations playing under *Rotating Specials*. Click any item for its own page with zoom, and for animations play/pause, frame stepping, a speed slider and a filmstrip. The tables here in the README are updated by hand.
+
+## Opening the shop (GitHub Pages)
+
+Settings → Pages → *Deploy from a branch* → `main` / `(root)`. The menu is `index.html`.

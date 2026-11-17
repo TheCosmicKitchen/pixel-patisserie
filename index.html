@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Patisserie</title>
+<meta name="description" content="The menu of every pixel-art asset baked for Pixel Patisserie.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fbf1e4;
+    --dot: #f1dcc4;
+    --paper: #fffaf3;
+    --ink: #4a2c2a;
+    --ink-soft: #94695f;
+    --rose: #eb9aab;
+    --rose-deep: #c9607a;
+    --gold: #c9a24a;
+    --line: #e2c9ad;
+    --check: #f7e3e7;
+    --shadow: 0 18px 40px rgba(74, 44, 42, .16);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --cream: #221615; --dot: #2f201e; --paper: #2f211e;
+      --ink: #f6e6d4; --ink-soft: #c9a99a; --rose: #d97a90; --rose-deep: #f0a3b4;
+      --gold: #e2bf6a; --line: #5a4036; --check: #3a2725;
+      --shadow: 0 18px 40px rgba(0, 0, 0, .5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --cream: #221615; --dot: #2f201e; --paper: #2f211e;
+    --ink: #f6e6d4; --ink-soft: #c9a99a; --rose: #d97a90; --rose-deep: #f0a3b4;
+    --gold: #e2bf6a; --line: #5a4036; --check: #3a2725;
+    --shadow: 0 18px 40px rgba(0, 0, 0, .5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream);
+    background-image: radial-gradient(var(--dot) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+    color: var(--ink);
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  img.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Awning ---------- */
+  .awning {
+    height: 52px;
+    background: repeating-linear-gradient(90deg, var(--rose) 0 44px, #fffaf3 44px 88px);
+    position: relative;
+  }
+  .awning::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -16px; height: 16px;
+    background:
+      radial-gradient(circle at 22px 0, var(--rose) 21px, transparent 22px) 0 0 / 88px 16px repeat-x,
+      radial-gradient(circle at 66px 0, #fffaf3 21px, transparent 22px) 0 0 / 88px 16px repeat-x;
+  }
+  .theme-toggle {
+    position: fixed; top: 64px; right: 16px; z-index: 2;
+    font: 1rem "Pixelify Sans", monospace; cursor: pointer; color: var(--ink);
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 50%;
+    width: 38px; height: 38px;
+  }
+
+  /* ---------- The menu card ---------- */
+  .card {
+    max-width: 640px;
+    margin: 56px auto 48px;
+    background: var(--paper);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .card-inner {
+    border: 2px solid var(--gold);
+    outline: 1px solid var(--gold); outline-offset: -7px;
+    border-radius: 3px;
+    padding: 40px clamp(18px, 6vw, 52px) 36px;
+    position: relative;
+  }
+  .card-inner::before, .card-inner::after {
+    content: "❦"; position: absolute; color: var(--gold); font-size: 1.3rem; line-height: 1;
+  }
+  .card-inner::before { top: 12px; left: 14px; transform: rotate(180deg); }
+  .card-inner::after  { bottom: 12px; right: 14px; }
+
+  .masthead { text-align: center; }
+  .masthead .eyebrow { font-style: italic; color: var(--ink-soft); letter-spacing: .14em; font-size: .9rem; }
+  h1 {
+    font-family: "Pixelify Sans", monospace; font-weight: 700;
+    font-size: clamp(2.1rem, 8vw, 3.2rem); line-height: 1.05;
+    margin: 6px 0 4px;
+  }
+  h1 span { color: var(--rose-deep); }
+  .masthead p { margin: 6px 0 0; font-style: italic; color: var(--ink-soft); }
+
+  .divider { display: flex; align-items: center; gap: 12px; color: var(--gold); margin: 28px 0 22px; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--gold); }
+
+  .search {
+    display: block; margin: 0 auto; width: min(300px, 100%);
+    font: italic 1rem "Playfair Display", serif; color: var(--ink); text-align: center;
+    background: transparent; border: 0; border-bottom: 1px dashed var(--line);
+    padding: 6px 4px;
+  }
+  .search:focus { outline: none; border-bottom-color: var(--rose-deep); }
+
+  section.course { margin-top: 30px; }
+  .course h2 {
+    text-align: center; margin: 0;
+    font-family: "Pixelify Sans", monospace; font-weight: 600;
+    font-size: 1.35rem; letter-spacing: .12em; text-transform: uppercase;
+  }
+  .course .note { text-align: center; margin: 0 0 14px; font-style: italic; color: var(--ink-soft); font-size: .95rem; }
+
+  ul.items { list-style: none; margin: 0; padding: 0; }
+  .item a {
+    display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center;
+    padding: 10px 8px; margin: 0 -8px;
+    color: inherit; text-decoration: none; border-radius: 8px;
+    transition: background .15s;
+  }
+  .item a:hover, .item a:focus-visible { background: var(--check); outline: none; }
+  .item a:focus-visible { box-shadow: 0 0 0 2px var(--rose-deep); }
+  .mini {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(circle, var(--paper) 56%, transparent 57%),
+      repeating-conic-gradient(var(--line) 0 12deg, var(--paper) 12deg 24deg);
+    transition: transform .25s cubic-bezier(.3, 1.6, .5, 1);
+  }
+  .mini img { width: 40px; height: 40px; object-fit: contain; }
+  .mini span { font-size: 1.6rem; line-height: 1; }
+  .item a:hover .mini { transform: rotate(-8deg) scale(1.08); }
+  .line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .line .name { font-weight: 600; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .line .leader { flex: 1; border-bottom: 2px dotted var(--line); transform: translateY(-4px); min-width: 16px; }
+  .line .price { font-family: "Pixelify Sans", monospace; color: var(--rose-deep); white-space: nowrap; }
+  .desc { display: block; font-style: italic; color: var(--ink-soft); font-size: .9rem; overflow-wrap: anywhere; }
+
+  .empty { text-align: center; font-style: italic; color: var(--ink-soft); padding: 24px 0 4px; }
+  .signoff { text-align: center; margin-top: 34px; font-style: italic; color: var(--ink-soft); font-size: .9rem; }
+  .signoff a { color: var(--rose-deep); }
+
+  /* ---------- One item, served ---------- */
+  .back { font: italic 1rem "Playfair Display", serif; color: var(--rose-deep); text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  .plate-title { text-align: center; margin-top: 10px; }
+  .plate-title h2 { font-family: "Pixelify Sans", monospace; font-size: clamp(1.8rem, 6vw, 2.4rem); margin: 0; line-height: 1.1; }
+  .plate-title p { margin: 4px 0 0; font-style: italic; color: var(--ink-soft); }
+  .stage {
+    margin: 22px 0 0;
+    display: grid; place-items: center;
+    min-height: 260px; max-height: 62vh; overflow: auto; padding: 24px;
+    border-radius: 8px; border: 1px solid var(--line);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%),
+      linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%);
+    background-size: 16px 16px; background-position: 0 0, 8px 8px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-top: 14px; }
+  .pill {
+    font: 1rem "Pixelify Sans", monospace; cursor: pointer; color: var(--ink); text-decoration: none;
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 999px;
+    padding: 4px 14px; transition: background .12s;
+  }
+  .pill:hover { background: var(--check); }
+  .pill[aria-pressed="true"] { background: var(--rose); color: #fff; border-color: var(--rose-deep); }
+  .pill:focus-visible { outline: 2px solid var(--rose-deep); outline-offset: 2px; }
+  .row label { display: flex; align-items: center; gap: 6px; font-style: italic; color: var(--ink-soft); }
+  .row input[type="range"] { accent-color: var(--rose-deep); width: 110px; }
+  .frame-no { font-family: "Pixelify Sans", monospace; min-width: 7ch; text-align: center; }
+  .filmstrip { display: flex; gap: 6px; overflow-x: auto; margin-top: 14px; padding: 4px 2px 8px; }
+  .filmstrip button {
+    all: unset; cursor: pointer; flex: 0 0 auto;
+    width: 46px; height: 46px; display: grid; place-items: center;
+    background: var(--paper); border: 2px solid var(--line); border-radius: 6px;
+  }
+  .filmstrip button[aria-current="true"] { border-color: var(--rose-deep); background: var(--check); }
+  .filmstrip button:focus-visible { outline: 2px solid var(--gold); }
+  .filmstrip img { width: 36px; height: 36px; object-fit: contain; }
+  .meta { text-align: center; font-style: italic; color: var(--ink-soft); font-size: .9rem; margin-top: 12px; overflow-wrap: anywhere; }
+
+  @media (max-width: 520px) {
+    .card { margin: 44px 10px 32px; padding: 8px; }
+    .mini { width: 48px; height: 48px; }
+    .mini img { width: 34px; height: 34px; }
+    .theme-toggle { top: 60px; right: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mini, .item a { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="awning" aria-hidden="true"></div>
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark">☾</button>
+
+<div class="card">
+  <div class="card-inner">
+
+    <!-- ===== The menu ===== -->
+    <div id="menuView">
+      <div class="masthead">
+        <div class="eyebrow">est. 2026 · baked fresh daily</div>
+        <h1>Pixel <span>Patisserie</span></h1>
+        <p>A menu of every sprite we bake for the game</p>
+      </div>
+      <div class="divider" aria-hidden="true">✿</div>
+      <input class="search" id="search" type="search" placeholder="What are you craving?" aria-label="Search the menu">
+      <div id="menu"><p class="empty">Warming up the ovens…</p></div>
+      <p class="signoff">Made with love, one pixel at a time ·
+        <a href="https://github.com/TheCosmicKitchen/pixel-patisserie">the kitchen</a></p>
+    </div>
+
+    <!-- ===== One item, served ===== -->
+    <div id="plateView" hidden>
+      <a class="back" href="#">← Back to the menu</a>
+      <div class="plate-title">
+        <h2 id="plateName"></h2>
+        <p id="plateNote"></p>
+      </div>
+      <div class="stage"><img class="px" id="plateImg" alt=""></div>
+      <div class="row" id="animControls">
+        <button class="pill" id="prevFrame" type="button" aria-label="Previous frame">◀</button>
+        <button class="pill" id="playPause" type="button" aria-label="Pause">❚❚</button>
+        <button class="pill" id="nextFrame" type="button" aria-label="Next frame">▶</button>
+        <span class="frame-no" id="frameNo"></span>
+        <label>Speed <input type="range" id="fps" min="1" max="24" value="8"> <span id="fpsLabel">8 fps</span></label>
+      </div>
+      <div class="filmstrip" id="filmstrip" aria-label="Frames"></div>
+      <div class="row">
+        <span class="row" id="zooms" role="group" aria-label="Zoom" style="margin:0"></span>
+        <a class="pill" id="download" download>Take one home ↓</a>
+      </div>
+      <p class="meta" id="plateMeta"></p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // The menu is read from the repo itself, so anything pushed to Art/ shows up here.
+  //   Art/<file>.png            -> a still sprite
+  //   Art/<folder>/<frames>.png -> one animation; frames play in filename order (walk1, walk2, … walk10)
+  const OWNER = "TheCosmicKitchen", REPO = "pixel-patisserie", BRANCH = "main", ROOT = "Art/";
+  const IMAGE_EXT = /\.(png|gif|webp|jpe?g|bmp|svg)$/i;
+  const FALLBACK = ["Art/oven8.png"]; // used if the GitHub API can't be reached
+  const MENU_FPS = 8;
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const COURSES = [
+    { kind: "still", title: "Our Menu",          note: "baked fresh, served as they are" },
+    { kind: "anim",  title: "Rotating Specials", note: "animations, warm from the oven" },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  let items = [];
+
+  async function listFiles() {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`);
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      return data.tree.filter(t => t.type === "blob" && t.path.startsWith(ROOT) && IMAGE_EXT.test(t.path))
+                      .map(t => ({ path: t.path, size: t.size }));
+    } catch (e) {
+      return FALLBACK.map(path => ({ path }));
+    }
+  }
+
+  const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+  const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
+  const slug = (path) => path.slice(ROOT.length).replace(/\/$/, "").replace(/\.[^./]+$/, "");
+
+  function srcFor(path) {
+    // On the hosted page (or a local server) read files next to the page; otherwise straight from GitHub.
+    const sameSite = location.hostname.endsWith("github.io") || location.hostname === "localhost";
+    return sameSite ? path : `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  }
+
+  function buildItems(files) {
+    const stills = [], anims = new Map();
+    for (const f of files) {
+      const rel = f.path.slice(ROOT.length);
+      const cut = rel.lastIndexOf("/");
+      const frame = { ...f, file: rel.slice(cut + 1), src: srcFor(f.path) };
+      if (cut < 0) {
+        stills.push({ kind: "still", name: pretty(frame.file.replace(/\.[^.]+$/, "")), path: f.path, frames: [frame] });
+      } else {
+        const folder = rel.slice(0, cut);
+        if (!anims.has(folder)) anims.set(folder, { kind: "anim", name: pretty(folder.split("/").pop()), path: ROOT + folder + "/", frames: [] });
+        anims.get(folder).frames.push(frame);
+      }
+    }
+    for (const a of anims.values()) a.frames.sort((x, y) => byName(x.file, y.file));
+    const all = [...stills, ...anims.values()].sort((a, b) => byName(a.name, b.name));
+    for (const i of all) i.id = slug(i.path);
+    return all;
+  }
+
+  // ---------- The menu ----------
+  const playing = new Set(); // menu thumbnails of animations, ticking on one shared clock
+  let tick = 0;
+  setInterval(() => {
+    if (reduceMotion || !$("plateView").hidden) return;
+    tick++;
+    for (const p of playing) p.img.src = p.item.frames[tick % p.item.frames.length].src;
+  }, 1000 / MENU_FPS);
+
+  function renderMenu() {
+    const q = $("search").value.trim().toLowerCase();
+    const shown = items.filter(i => !q || i.name.toLowerCase().includes(q) || i.path.toLowerCase().includes(q));
+    const menu = $("menu");
+    menu.innerHTML = "";
+    playing.clear();
+
+    if (!shown.length) {
+      menu.innerHTML = `<p class="empty">${items.length ? "Sorry, we're all out of that one." : "The kitchen is still baking."}</p>`;
+      return;
+    }
+    for (const c of COURSES) {
+      const list = shown.filter(i => i.kind === c.kind);
+      if (!list.length) continue;
+      const sec = document.createElement("section");
+      sec.className = "course";
+      sec.innerHTML = `<h2></h2><p class="note"></p><ul class="items"></ul>`;
+      sec.querySelector("h2").textContent = c.title;
+      sec.querySelector(".note").textContent = c.note;
+      const ul = sec.querySelector("ul");
+      for (const item of list) ul.append(menuItem(item));
+      menu.append(sec);
+    }
+  }
+
+  function menuItem(item) {
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `
+      <a>
+        <span class="mini"><img class="px" loading="lazy" alt=""></span>
+        <span>
+          <span class="line"><span class="name"></span><span class="leader"></span><span class="price"></span></span>
+          <span class="desc"></span>
+        </span>
+      </a>`;
+    li.querySelector("a").href = "#" + encodeURI(item.id);
+    li.querySelector(".name").textContent = item.name;
+    li.querySelector(".desc").textContent = item.path;
+    const price = li.querySelector(".price");
+    const anim = item.kind === "anim";
+    price.textContent = anim ? `${item.frames.length} frames` : "…";
+    const img = li.querySelector("img");
+    img.addEventListener("load", () => {
+      item.w = img.naturalWidth; item.h = img.naturalHeight;
+      if (!anim) price.textContent = `${item.w}×${item.h}`;
+    }, { once: true });
+    img.addEventListener("error", () => {
+      // Missing or unreadable file: show a cupcake on the plate instead of a broken-image icon.
+      playing.forEach(p => { if (p.img === img) playing.delete(p); });
+      img.replaceWith(Object.assign(document.createElement("span"), { textContent: "🧁", title: "Couldn't load this one", ariaHidden: "true" }));
+      price.textContent = "burnt";
+    }, { once: true });
+    img.src = item.frames[0].src;
+    if (anim) playing.add({ img, item });
+    return li;
+  }
+
+  // ---------- One item, served ----------
+  let current = null, frameIdx = 0, timer = null, fps = 8;
+
+  function showFrame(i) {
+    const frames = current.frames;
+    frameIdx = (i + frames.length) % frames.length;
+    const f = frames[frameIdx];
+    $("plateImg").src = f.src;
+    $("download").href = f.src;
+    $("download").setAttribute("download", f.file);
+    if (frames.length > 1) {
+      $("frameNo").textContent = `${frameIdx + 1} / ${frames.length}`;
+      [...$("filmstrip").children].forEach((b, j) => b.setAttribute("aria-current", String(j === frameIdx)));
+    }
+    const kb = f.size ? ` · ${(f.size / 1024).toFixed(1)} KB` : "";
+    $("plateMeta").textContent = `${current.w ?? "?"}×${current.h ?? "?"}px${kb} · ${f.path}`;
+  }
+
+  function setPlaying(on) {
+    clearInterval(timer); timer = null;
+    if (on) timer = setInterval(() => showFrame(frameIdx + 1), 1000 / fps);
+    $("playPause").textContent = on ? "❚❚" : "▶";
+    $("playPause").setAttribute("aria-label", on ? "Pause" : "Play");
+  }
+
+  function setZoom(z) {
+    const img = $("plateImg");
+    img.style.width = current.w ? `${current.w * z}px` : "";
+    img.style.height = current.h ? `${current.h * z}px` : "";
+    for (const b of $("zooms").children) b.setAttribute("aria-pressed", String(+b.dataset.z === z));
+  }
+
+  function serve(item) {
+    current = item;
+    const anim = item.frames.length > 1;
+    $("plateName").textContent = item.name;
+    $("plateNote").textContent = anim ? `an animation in ${item.frames.length} frames` : "a still sprite";
+    $("plateImg").alt = item.name;
+    $("animControls").hidden = !anim;
+    $("filmstrip").hidden = !anim;
+
+    $("filmstrip").innerHTML = "";
+    if (anim) item.frames.forEach((f, j) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.title = f.file; b.setAttribute("aria-label", `Frame ${j + 1}`);
+      b.innerHTML = `<img class="px" alt="">`;
+      b.firstChild.src = f.src;
+      b.addEventListener("click", () => { setPlaying(false); showFrame(j); });
+      $("filmstrip").append(b);
+    });
+
+    $("zooms").innerHTML = "";
+    const probe = new Image();
+    probe.onload = () => {
+      if (current !== item) return;
+      item.w = probe.naturalWidth; item.h = probe.naturalHeight;
+      for (const z of [1, 2, 4, 8]) {
+        const b = document.createElement("button");
+        b.className = "pill"; b.type = "button"; b.dataset.z = z; b.textContent = `${z}×`;
+        b.addEventListener("click", () => setZoom(z));
+        $("zooms").append(b);
+      }
+      const room = Math.min(520, $("plateView").clientWidth - 50);
+      setZoom([8, 4, 2, 1].find(z => item.w * z <= room && item.h * z <= 380) || 1);
+      showFrame(frameIdx);
+    };
+    probe.src = item.frames[0].src;
+
+    showFrame(0);
+    setPlaying(anim && !reduceMotion);
+  }
+
+  $("playPause").addEventListener("click", () => setPlaying(!timer));
+  $("prevFrame").addEventListener("click", () => { setPlaying(false); showFrame(frameIdx - 1); });
+  $("nextFrame").addEventListener("click", () => { setPlaying(false); showFrame(frameIdx + 1); });
+  $("fps").addEventListener("input", (e) => {
+    fps = +e.target.value;
+    $("fpsLabel").textContent = `${fps} fps`;
+    if (timer) setPlaying(true);
+  });
+  document.addEventListener("keydown", (e) => {
+    if ($("plateView").hidden) return;
+    if (e.key === "Escape") { location.hash = ""; return; }
+    if (!current || current.frames.length < 2) return;
+    if (e.key === "ArrowLeft") { setPlaying(false); showFrame(frameIdx - 1); }
+    else if (e.key === "ArrowRight") { setPlaying(false); showFrame(frameIdx + 1); }
+    else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); setPlaying(!timer); }
+  });
+
+  // ---------- Routing: #<item> serves that item, no hash shows the menu ----------
+  let menuScroll = 0;
+  function route() {
+    const id = decodeURI(location.hash.slice(1));
+    const item = id && items.find(i => i.id === id);
+    if (item) {
+      if (!$("menuView").hidden) menuScroll = scrollY;
+      $("menuView").hidden = true;
+      $("plateView").hidden = false;
+      document.title = `${item.name} · Pixel Patisserie`;
+      serve(item);
+      scrollTo(0, 0);
+    } else {
+      setPlaying(false);
+      $("plateView").hidden = true;
+      $("menuView").hidden = false;
+      document.title = "Pixel Patisserie";
+      scrollTo(0, menuScroll);
+    }
+  }
+  addEventListener("hashchange", route);
+
+  // ---------- Theme ----------
+  function isDark() {
+    const t = document.documentElement.dataset.theme;
+    return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function applyTheme(t) {
+    if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    $("themeToggle").textContent = isDark() ? "☀" : "☾";
+  }
+  let saved = null;
+  try { saved = localStorage.getItem("pp-theme"); } catch (e) {}
+  applyTheme(saved);
+  $("themeToggle").addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    try { localStorage.setItem("pp-theme", next); } catch (e) {}
+    applyTheme(next);
+  });
+
+  $("search").addEventListener("input", renderMenu);
+
+  function load(files) {
+    items = buildItems(files);
+    renderMenu();
+    route();
+  }
+  window.pixelPatisserie = { load }; // for previewing local files: pixelPatisserie.load([{path: "Art/x.png"}])
+  listFiles().then(load);
+</script>
+</body>
+</html>
