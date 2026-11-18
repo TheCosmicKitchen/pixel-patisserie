@@ -48,7 +48,7 @@
     line-height: 1.5;
     min-height: 100vh;
   }
-  img.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+  img.px, canvas.px { image-rendering: pixelated; image-rendering: crisp-edges; }
   [hidden] { display: none !important; }
 
   /* ---------- Awning ---------- */
@@ -166,7 +166,7 @@
   .plate-title p { margin: 4px 0 0; font-style: italic; color: var(--ink-soft); }
   .stage {
     margin: 22px 0 0;
-    display: grid; place-items: center;
+    display: flex;                          /* the plate centres with margin:auto, so a big zoom still scrolls to every edge */
     min-height: 260px; max-height: 62vh; overflow: auto; padding: 24px;
     border-radius: 8px; border: 1px solid var(--line);
     background-color: var(--paper);
@@ -174,6 +174,16 @@
       linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%),
       linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%);
     background-size: 16px 16px; background-position: 0 0, 8px 8px;
+  }
+  .plate { margin: auto; position: relative; line-height: 0; }
+  .plate canvas { display: block; }
+  /* Thin lines on every tile border, so it's clear where one copy ends and the next begins. */
+  .plate.edges::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--gold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gold) 1px, transparent 1px);
+    background-size: var(--tw) var(--th);
   }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-top: 14px; }
   .pill {
@@ -196,6 +206,27 @@
   .filmstrip button[aria-current="true"] { border-color: var(--rose-deep); background: var(--check); }
   .filmstrip button:focus-visible { outline: 2px solid var(--gold); }
   .filmstrip img { width: 36px; height: 36px; object-fit: contain; }
+  .row .tick { cursor: pointer; }
+  .row .tick input { accent-color: var(--rose-deep); }
+
+  /* ---------- Palette ---------- */
+  .palette { margin-top: 20px; padding-top: 14px; border-top: 1px dashed var(--line); text-align: center; }
+  .palette h3 { margin: 0; font: 600 1.05rem "Pixelify Sans", monospace; letter-spacing: .12em; text-transform: uppercase; }
+  .palette h3 small { font: italic .9rem "Playfair Display", serif; letter-spacing: 0; text-transform: none; color: var(--ink-soft); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+  .swatch {
+    position: relative; width: 30px; height: 30px; border-radius: 6px;
+    border: 2px solid var(--ink); background: var(--c);
+    transition: transform .12s;
+  }
+  /* A swapped colour keeps a corner of the original, so it's clear what it replaced. */
+  .swatch.swapped { background: linear-gradient(135deg, var(--o) 0 32%, var(--c) 32%); }
+  .swatch:hover, .swatch:focus-within { transform: scale(1.15); }
+  .swatch:focus-within { outline: 2px solid var(--rose-deep); outline-offset: 2px; }
+  .swatch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+  .hint { font-style: italic; color: var(--ink-soft); font-size: .85rem; margin: 8px 0 0; }
+  .pill.small { font-size: .85rem; padding: 2px 10px; }
+
   .meta { text-align: center; font-style: italic; color: var(--ink-soft); font-size: .9rem; margin-top: 12px; overflow-wrap: anywhere; }
 
   @media (max-width: 520px) {
@@ -237,7 +268,7 @@
         <h2 id="plateName"></h2>
         <p id="plateNote"></p>
       </div>
-      <div class="stage"><img class="px" id="plateImg" alt=""></div>
+      <div class="stage"><div class="plate" id="plate"><canvas class="px" id="plateCanvas" role="img"></canvas></div></div>
       <div class="row" id="animControls">
         <button class="pill" id="prevFrame" type="button" aria-label="Previous frame">◀</button>
         <button class="pill" id="playPause" type="button" aria-label="Pause">❚❚</button>
@@ -249,10 +280,25 @@
       <div class="filmstrip" id="filmstrip" aria-label="Frames"></div>
       <div class="row">
         <span class="row" id="zooms" role="group" aria-label="Zoom" style="margin:0"></span>
+      </div>
+      <div class="row">
+        <span class="row" id="tiles" role="group" aria-label="Tiling" style="margin:0"></span>
+        <label class="tick" id="edgesLabel"><input type="checkbox" id="edges"> show tile edges</label>
+      </div>
+      <div class="row">
         <a class="pill" id="download" download>Take one home ↓</a>
         <a class="pill" id="source" download hidden>Original file ↓</a>
       </div>
       <p class="meta" id="plateMeta"></p>
+      <div class="palette" id="palette" hidden>
+        <h3>Palette <small id="paletteNote"></small></h3>
+        <div class="swatches" id="swatches"></div>
+        <p class="hint">Click a colour to swap it · hover one to see where it's used</p>
+        <div class="row" id="swapActions" hidden>
+          <button class="pill small" id="resetColours" type="button">Reset colours</button>
+          <button class="pill small" id="copySwaps" type="button">Copy the swaps</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -373,7 +419,7 @@
         const blob = await new Promise(res => f.canvas.toBlob(res, "image/png"));
         const src = URL.createObjectURL(blob);
         const file = sprite.frames.length > 1 ? `${base}-frame${i + 1}.png` : `${base}.png`;
-        return { path: item.source.path, size: blob.size, file, src, backup: src, duration: f.duration };
+        return { path: item.source.path, size: blob.size, file, src, backup: src, duration: f.duration, canvas: f.canvas };
       }));
       item.tags = sprite.tags.filter(t => t.from <= t.to && t.to < item.frames.length);
       item.kind = item.frames.length > 1 ? "anim" : "still";
@@ -493,14 +539,95 @@
     return li;
   }
 
+  // ---------- Pixels ----------
+  // The plate draws from each frame's decoded pixels, so it can recolour them and lay them out in tiles.
+  async function decodeFrame(f) {
+    if (f.pixels) return f.pixels;
+    let source = f.canvas;                       // .ase frames arrive already drawn
+    if (!source) {
+      let blob = null;
+      for (const url of new Set([f.src, f.backup])) {
+        try { const r = await fetch(url); if (r.ok) { blob = await r.blob(); break; } } catch (e) {}
+      }
+      if (!blob) throw new Error(`Couldn't download ${f.path}`);
+      try { source = await createImageBitmap(blob); }
+      catch (e) {                                // SVG and other formats bitmaps can't read go through an <img>
+        source = new Image();
+        source.src = URL.createObjectURL(blob);
+        await new Promise((ok, fail) => { source.onload = ok; source.onerror = () => fail(new Error(`Couldn't read ${f.path}`)); });
+        URL.revokeObjectURL(source.src);
+      }
+    }
+    const w = source.naturalWidth ?? source.width, h = source.naturalHeight ?? source.height;
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0);
+    f.pixels = ctx.getImageData(0, 0, w, h);
+    return f.pixels;
+  }
+
+  // Colours are keyed by RGB as one number (0xRRGGBB); alpha is left as drawn.
+  const hex = (k) => "#" + k.toString(16).padStart(6, "0");
+  const keyOfHex = (h) => parseInt(h.slice(1), 16);
+  const MAX_SWATCHES = 128;
+
+  // Every opaque-ish colour across all frames, most used first.
+  function paletteOf(item) {
+    const counts = new Map();
+    for (const f of item.frames) {
+      const d = f.pixels.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue;
+        const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+        counts.set(k, (counts.get(k) || 0) + 1);
+      }
+    }
+    return [...counts].sort((a, b) => b[1] - a[1]);
+  }
+
+  // swaps: original colour -> new colour. highlight: a colour to show alone, with the rest faded.
+  const swaps = new Map();
+  let highlight = null;
+
+  function recolour(src, withHighlight) {
+    const lit = withHighlight ? highlight : null;
+    if (!swaps.size && lit === null) return src;
+    const out = new ImageData(new Uint8ClampedArray(src.data), src.width, src.height);
+    const d = out.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue;
+      const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+      if (lit !== null && k !== lit) d[i + 3] = d[i + 3] * 0.12;
+      const n = swaps.get(k);
+      if (n !== undefined) { d[i] = n >> 16; d[i + 1] = (n >> 8) & 255; d[i + 2] = n & 255; }
+    }
+    return out;
+  }
+
+  // One frame at its own size, drawn tile × tile times onto the plate.
+  const work = document.createElement("canvas");
+  function paint(f) {
+    if (!f?.pixels) return;                     // not decoded yet; serve() paints again once it is
+    const { width: w, height: h } = f.pixels;
+    work.width = w; work.height = h;
+    work.getContext("2d").putImageData(recolour(f.pixels, true), 0, 0);
+    const out = $("plateCanvas");
+    out.width = w * tile; out.height = h * tile;
+    const ctx = out.getContext("2d");
+    for (let y = 0; y < tile; y++) for (let x = 0; x < tile; x++) ctx.drawImage(work, x * w, y * h);
+  }
+
   // ---------- One item, served ----------
-  let current = null, loop = [], step = 0, timer = null, speedIdx = 4;
+  let current = null, loop = [], step = 0, timer = null, speedIdx = 4, tile = 1, zoom = 1;
+  const TILINGS = [1, 3, 5];
+  const looksTileable = (item) => /tile|background|\bbg\b|pattern|texture/i.test(item.path);
 
   function showStep(s) {
     step = (s + loop.length) % loop.length;
     const frameIdx = loop[step];
     const f = current.frames[frameIdx];
-    $("plateImg").src = f.src;
+    paint(f);
     $("download").href = f.src;
     $("download").setAttribute("download", f.file);
     if (current.frames.length > 1) {
@@ -531,11 +658,114 @@
   }
 
   function setZoom(z) {
-    const img = $("plateImg");
-    img.style.width = current.w ? `${current.w * z}px` : "";
-    img.style.height = current.h ? `${current.h * z}px` : "";
+    zoom = z;
+    const canvas = $("plateCanvas"), plate = $("plate");
+    canvas.style.width = current.w ? `${current.w * tile * z}px` : "";
+    canvas.style.height = current.h ? `${current.h * tile * z}px` : "";
+    plate.style.setProperty("--tw", `${current.w * z}px`);
+    plate.style.setProperty("--th", `${current.h * z}px`);
     for (const b of $("zooms").children) b.setAttribute("aria-pressed", String(+b.dataset.z === z));
   }
+
+  // The biggest zoom at which the whole plate (every tile) still fits on screen.
+  function fitZoom() {
+    const room = Math.min(520, $("plateView").clientWidth - 50);
+    const w = current.w * tile, h = current.h * tile;
+    setZoom([8, 4, 2, 1].find(z => w * z <= room && h * z <= 380) || 1);
+  }
+
+  function setTile(n) {
+    tile = n;
+    for (const b of $("tiles").children) b.setAttribute("aria-pressed", String(+b.dataset.n === n));
+    $("edgesLabel").hidden = n === 1;
+    $("plate").classList.toggle("edges", n > 1 && $("edges").checked);
+    if (current?.w) { fitZoom(); paint(current.frames[loop[step]]); }
+  }
+  for (const n of TILINGS) {
+    const b = document.createElement("button");
+    b.className = "pill"; b.type = "button"; b.dataset.n = n;
+    b.textContent = n === 1 ? "Single" : `Tiled ${n}×${n}`;
+    b.addEventListener("click", () => setTile(n));
+    $("tiles").append(b);
+  }
+  $("edges").addEventListener("change", () => setTile(tile));
+
+  // ---------- Palette swap ----------
+  function buildPalette(item) {
+    const colours = paletteOf(item);
+    const shown = colours.slice(0, MAX_SWATCHES);
+    $("paletteNote").textContent = colours.length > shown.length
+      ? `· the ${shown.length} most used of ${colours.length} colours`
+      : `· ${colours.length} colour${colours.length === 1 ? "" : "s"}`;
+    $("swatches").innerHTML = "";
+    for (const [k, count] of shown) {
+      const label = document.createElement("label");
+      label.className = "swatch";
+      label.style.setProperty("--c", hex(k));
+      label.style.setProperty("--o", hex(k));
+      const input = Object.assign(document.createElement("input"), { type: "color", value: hex(k) });
+      const describe = () => {
+        const n = swaps.get(k);
+        label.title = `${hex(k)}${n !== undefined ? " → " + hex(n) : ""} · ${count} px`;
+        input.setAttribute("aria-label", label.title);
+      };
+      describe();
+      input.addEventListener("input", () => {
+        const n = keyOfHex(input.value);
+        if (n === k) swaps.delete(k); else swaps.set(k, n);
+        label.style.setProperty("--c", input.value);
+        label.classList.toggle("swapped", n !== k);
+        describe();
+        swapsChanged();
+      });
+      // Show this colour alone while pointing at it, but not while its picker is open.
+      const lightUp = (on) => { highlight = on ? k : null; paint(current.frames[loop[step]]); };
+      label.addEventListener("pointerenter", () => lightUp(true));
+      label.addEventListener("pointerleave", () => lightUp(false));
+      input.addEventListener("click", () => lightUp(false));
+      label.append(input);
+      $("swatches").append(label);
+    }
+    $("palette").hidden = !colours.length;
+  }
+
+  function swapsChanged() {
+    $("swapActions").hidden = !swaps.size;
+    $("download").textContent = swaps.size ? "Take one home, recoloured ↓" : "Take one home ↓";
+    paint(current.frames[loop[step]]);
+  }
+
+  $("resetColours").addEventListener("click", () => {
+    swaps.clear();
+    for (const label of $("swatches").children) {
+      const input = label.firstChild;
+      input.value = label.style.getPropertyValue("--o");
+      input.dispatchEvent(new Event("input"));
+    }
+  });
+  $("copySwaps").addEventListener("click", async () => {
+    const text = [...swaps].map(([k, n]) => `${hex(k)} → ${hex(n)}`).join("\n");
+    const b = $("copySwaps");
+    try { await navigator.clipboard.writeText(text); b.textContent = "Copied ✓"; }
+    catch (e) { b.textContent = "Couldn't copy"; }
+    setTimeout(() => { b.textContent = "Copy the swaps"; }, 1500);
+  });
+
+  // With colours swapped, the download is the recoloured frame instead of the original file.
+  $("download").addEventListener("click", (e) => {
+    const f = current?.frames[loop[step]];
+    if (!swaps.size || !f?.pixels) return;
+    e.preventDefault();
+    const c = document.createElement("canvas");
+    c.width = f.pixels.width; c.height = f.pixels.height;
+    c.getContext("2d").putImageData(recolour(f.pixels, false), 0, 0);
+    c.toBlob((blob) => {
+      const a = Object.assign(document.createElement("a"),
+        { href: URL.createObjectURL(blob), download: `${stripExt(f.file)}-recoloured.png` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, "image/png");
+  });
 
   function markTag(tag) {
     for (const b of $("tags").children) b.setAttribute("aria-pressed", String(b._tag === tag));
@@ -551,12 +781,18 @@
   function serve(item) {
     current = item;
     loop = loopFor(item);
+    step = 0;
     const anim = item.frames.length > 1;
     $("plateName").textContent = item.name;
     $("plateNote").textContent = item.broken ? "this one came out of the oven burnt"
       : anim ? `an animation in ${item.frames.length} frames` : "a still sprite";
-    $("plateImg").alt = item.name;
-    $("plateImg").hidden = !!item.broken;
+    $("plateCanvas").setAttribute("aria-label", item.name);
+    $("plate").hidden = !!item.broken;
+    swaps.clear(); highlight = null;
+    $("palette").hidden = true;
+    $("swapActions").hidden = true;
+    $("download").textContent = "Take one home ↓";
+    $("plateCanvas").width = $("plateCanvas").height = 0;
     $("animControls").hidden = !anim;
     $("filmstrip").hidden = !anim;
     $("download").hidden = !!item.broken;
@@ -591,22 +827,27 @@
     $("zooms").innerHTML = "";
     if (item.broken) { $("plateMeta").textContent = `Couldn't read ${item.path}`; setPlaying(false); return; }
 
-    const probe = new Image();
-    probe.onload = () => {
+    // Tile backgrounds and patterns start tiled; everything else starts as a single copy.
+    tile = looksTileable(item) ? 3 : 1;
+    setTile(tile);
+    $("plateMeta").textContent = "Plating up…";
+    Promise.all(item.frames.map(decodeFrame)).then(() => {
       if (current !== item) return;
-      item.w = probe.naturalWidth; item.h = probe.naturalHeight;
+      item.w = item.frames[0].pixels.width; item.h = item.frames[0].pixels.height;
       for (const z of [1, 2, 4, 8]) {
         const b = document.createElement("button");
         b.className = "pill"; b.type = "button"; b.dataset.z = z; b.textContent = `${z}×`;
         b.addEventListener("click", () => setZoom(z));
         $("zooms").append(b);
       }
-      const room = Math.min(520, $("plateView").clientWidth - 50);
-      setZoom([8, 4, 2, 1].find(z => item.w * z <= room && item.h * z <= 380) || 1);
+      fitZoom();
+      buildPalette(item);
       showStep(step);
-    };
-    loadImage(probe, item.frames[0], () => {});
-    loadImage($("plateImg"), item.frames[0], () => { $("plateMeta").textContent = `Couldn't load ${item.path}`; });
+    }, (e) => {
+      if (current !== item) return;
+      console.warn(item.path, e);
+      $("plateMeta").textContent = `Couldn't load ${item.path}`;
+    });
 
     showStep(0);
     setPlaying(anim && !reduceMotion);

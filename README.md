@@ -52,6 +52,10 @@ Art/
 
 Push, and it shows up on the menu by itself. Click any item for its own page with zoom and a download of the current frame as a PNG (plus the original file for LibreSprite art). Animations also get play/pause, frame stepping, a speed slider and a filmstrip. The tables here in the README are updated by hand.
 
+Every item's page also has:
+- **Tiling:** show it as a 3×3 or 5×5 grid, with optional tile edges, to check that a background repeats without seams. Anything with "tile", "background", "bg", "pattern" or "texture" in its path starts tiled.
+- **Palette swap:** every colour the art uses, most used first. Click a colour to try a replacement (it changes in every frame at once), or hover over one to see where it's used. A recoloured frame downloads as a PNG, and "Copy the swaps" copies a list like `#ffffff → #eb9aab` to paste into LibreSprite or a message. Swaps are just for trying things out; they aren't saved.
+
 ## Opening the shop (GitHub Pages)
 
 Settings → Pages → *Deploy from a branch* → `main` / `(root)`. The menu is `index.html`.
