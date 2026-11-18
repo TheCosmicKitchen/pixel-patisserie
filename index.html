@@ -121,6 +121,13 @@
   }
   .course .note { text-align: center; margin: 0 0 14px; font-style: italic; color: var(--ink-soft); font-size: .95rem; }
 
+  .course h3.group {
+    display: flex; align-items: center; gap: 10px;
+    margin: 18px 0 4px; font-weight: 600; font-style: italic; font-size: 1.05rem;
+    color: var(--rose-deep);
+  }
+  .course h3.group::before { content: "✿"; color: var(--gold); font-style: normal; font-size: .9rem; }
+  .course h3.group::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   ul.items { list-style: none; margin: 0; padding: 0; }
   .item a {
     display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center;
@@ -255,21 +262,27 @@
   import { readAse } from "./ase-reader.js";
 
   // The menu is read from the repo itself, so anything pushed to Art/ shows up here.
-  //   Art/<file>.png               -> a still sprite
-  //   Art/<folder>/<frames>.png    -> one animation; frames play in filename order (walk1, walk2, … walk10)
-  //   Art/**/<name>.ase / .aseprite -> a LibreSprite/Aseprite file, anywhere under Art/; it is its own item,
-  //                                   a still if it has one frame, an animation (with its own timing) if more
+  //   Art/Sprites/<file>                    -> a sprite under "Our Menu"
+  //   Art/Sprites/<Group>/…/<file>          -> the same, listed under a "Group" heading
+  //   Art/Animations/<Anim>/<frames>.png    -> one animation under "Rotating Specials"; frames play in
+  //                                            filename order (walk1, walk2, … walk10)
+  //   Art/Animations/<Anim>/<name>.ase      -> one animation read straight from a LibreSprite file
+  //   Art/Animations/<Group>/…/<Anim>/…     -> the same, listed under a "Group" heading
+  // "<file>" is an image or a LibreSprite/Aseprite file (.ase, .aseprite).
+  // Anything elsewhere in Art/ follows the original layout: loose images are sprites, a folder of
+  // images is an animation, and a LibreSprite file goes wherever its frame count puts it.
   const OWNER = "TheCosmicKitchen", REPO = "pixel-patisserie", BRANCH = "main", ROOT = "Art/";
+  const SPRITES = "Sprites", ANIMATIONS = "Animations";
   const IMAGE_EXT = /\.(png|gif|webp|jpe?g|bmp|svg)$/i;
   const ASE_EXT = /\.(ase|aseprite)$/i;
-  const FALLBACK = ["Art/oven8.png"]; // used if the GitHub API can't be reached
+  const FALLBACK = ["Art/Sprites/oven8.png"]; // used if the GitHub API can't be reached
   const FOLDER_FRAME_MS = 125;        // folder animations play at 8 fps
   const SPEEDS = [0.25, 0.33, 0.5, 0.75, 1, 1.5, 2, 3, 4];
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const COURSES = [
-    { kind: "still", title: "Our Menu",          note: "baked fresh, served as they are" },
-    { kind: "anim",  title: "Rotating Specials", note: "animations, warm from the oven" },
+    { course: "menu",     title: "Our Menu",          note: "baked fresh, served as they are" },
+    { course: "specials", title: "Rotating Specials", note: "animations, warm from the oven" },
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -288,7 +301,7 @@
   }
 
   const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-  const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
+  const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)\s*(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
   const slug = (path) => path.slice(ROOT.length).replace(/\/$/, "").replace(/\.[^./]+$/, "");
   const stripExt = (file) => file.replace(/\.[^.]+$/, "");
 
@@ -298,25 +311,45 @@
   const sameSite = location.hostname.endsWith("github.io") || location.hostname === "localhost";
   const srcFor = (path) => sameSite ? path.split("/").map(encodeURIComponent).join("/") : rawUrl(path);
 
+  // Each item gets a course ("menu" or "specials"; null means decide from its frame count once read)
+  // and a group: the folder names it is listed under, [] for none.
   function buildItems(files) {
     const items = [], anims = new Map();
+    const single = (f, file, course, group) => {
+      const item = { kind: "still", course, group, name: pretty(stripExt(file)), path: f.path, frames: [], tags: [] };
+      if (ASE_EXT.test(file)) item.source = { ...f, file };   // frames are filled in by bake()
+      else item.frames.push(frameOf(f, file));
+      items.push(item);
+    };
+    const frameOfAnim = (f, file, folders, group) => {
+      const key = folders.join("/");
+      if (!anims.has(key)) anims.set(key, { kind: "anim", course: "specials", group, name: pretty(folders.at(-1)),
+                                            path: ROOT + key + "/", frames: [], tags: [] });
+      anims.get(key).frames.push(frameOf(f, file));
+    };
+
     for (const f of files) {
-      const rel = f.path.slice(ROOT.length);
-      const cut = rel.lastIndexOf("/");
-      const file = rel.slice(cut + 1);
-      if (ASE_EXT.test(file)) {
-        items.push({ kind: "still", name: pretty(stripExt(file)), path: f.path, source: { ...f, file }, frames: [], tags: [] });
-      } else if (cut < 0) {
-        items.push({ kind: "still", name: pretty(stripExt(file)), path: f.path, frames: [frameOf(f, file)], tags: [] });
+      const parts = f.path.slice(ROOT.length).split("/");
+      const file = parts.pop();                 // parts now holds the folders, top first
+      const [top, ...inner] = parts;
+      if (top === SPRITES) {
+        single(f, file, "menu", inner);
+      } else if (top === ANIMATIONS) {
+        // The folder that holds an animation is that animation; the folders above it are its group.
+        const group = inner.slice(0, -1);
+        if (ASE_EXT.test(file) || !inner.length) single(f, file, "specials", group);
+        else frameOfAnim(f, file, parts, group);
+      } else if (ASE_EXT.test(file)) {
+        single(f, file, null, []);
+      } else if (!parts.length) {
+        single(f, file, "menu", []);
       } else {
-        const folder = rel.slice(0, cut);
-        if (!anims.has(folder)) anims.set(folder, { kind: "anim", name: pretty(folder.split("/").pop()), path: ROOT + folder + "/", frames: [], tags: [] });
-        anims.get(folder).frames.push(frameOf(f, file));
+        frameOfAnim(f, file, parts, []);
       }
     }
     for (const a of anims.values()) a.frames.sort((x, y) => byName(x.file, y.file));
     const all = [...items, ...anims.values()].sort((a, b) => byName(a.name, b.name));
-    for (const i of all) i.id = slug(i.path);
+    for (const i of all) { i.id = slug(i.path); i.groupName = i.group.map(pretty).join(" · "); }
     return all;
   }
 
@@ -393,7 +426,7 @@
 
   function renderMenu() {
     const q = $("search").value.trim().toLowerCase();
-    const shown = items.filter(i => !q || i.name.toLowerCase().includes(q) || i.path.toLowerCase().includes(q));
+    const shown = items.filter(i => !q || [i.name, i.path, i.groupName].some(s => s.toLowerCase().includes(q)));
     const menu = $("menu");
     menu.innerHTML = "";
     playing.clear();
@@ -403,15 +436,25 @@
       return;
     }
     for (const c of COURSES) {
-      const list = shown.filter(i => i.kind === c.kind);
+      const list = shown.filter(i => i.course === c.course);
       if (!list.length) continue;
       const sec = document.createElement("section");
       sec.className = "course";
-      sec.innerHTML = `<h2></h2><p class="note"></p><ul class="items"></ul>`;
+      sec.innerHTML = `<h2></h2><p class="note"></p>`;
       sec.querySelector("h2").textContent = c.title;
       sec.querySelector(".note").textContent = c.note;
-      const ul = sec.querySelector("ul");
-      for (const item of list) ul.append(menuItem(item));
+      // Ungrouped items come first, then one heading per group in name order.
+      const groups = new Map();
+      for (const item of list) {
+        if (!groups.has(item.groupName)) groups.set(item.groupName, []);
+        groups.get(item.groupName).push(item);
+      }
+      for (const name of [...groups.keys()].sort(byName)) {
+        if (name) sec.append(Object.assign(document.createElement("h3"), { className: "group", textContent: name }));
+        const ul = Object.assign(document.createElement("ul"), { className: "items" });
+        for (const item of groups.get(name)) ul.append(menuItem(item));
+        sec.append(ul);
+      }
       menu.append(sec);
     }
   }
@@ -631,6 +674,7 @@
   async function load(files) {
     items = buildItems(files);
     await Promise.all(items.filter(i => i.source).map(bake));
+    for (const i of items) i.course ??= i.kind === "anim" ? "specials" : "menu";
     renderMenu();
     route();
   }
