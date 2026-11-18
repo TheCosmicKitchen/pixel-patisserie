@@ -288,7 +288,7 @@
   }
 
   const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-  const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
+  const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)\s*(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
   const slug = (path) => path.slice(ROOT.length).replace(/\/$/, "").replace(/\.[^./]+$/, "");
   const stripExt = (file) => file.replace(/\.[^.]+$/, "");
 
