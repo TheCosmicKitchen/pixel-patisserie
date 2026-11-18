@@ -236,12 +236,14 @@
         <button class="pill" id="playPause" type="button" aria-label="Pause">❚❚</button>
         <button class="pill" id="nextFrame" type="button" aria-label="Next frame">▶</button>
         <span class="frame-no" id="frameNo"></span>
-        <label>Speed <input type="range" id="fps" min="1" max="24" value="8"> <span id="fpsLabel">8 fps</span></label>
+        <label>Speed <input type="range" id="speed" min="0" max="8" step="1" value="4"> <span id="speedLabel">1×</span></label>
       </div>
+      <div class="row" id="tags" role="group" aria-label="Tagged loops"></div>
       <div class="filmstrip" id="filmstrip" aria-label="Frames"></div>
       <div class="row">
         <span class="row" id="zooms" role="group" aria-label="Zoom" style="margin:0"></span>
         <a class="pill" id="download" download>Take one home ↓</a>
+        <a class="pill" id="source" download hidden>Original file ↓</a>
       </div>
       <p class="meta" id="plateMeta"></p>
     </div>
@@ -249,14 +251,20 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { readAse } from "./ase-reader.js";
+
   // The menu is read from the repo itself, so anything pushed to Art/ shows up here.
-  //   Art/<file>.png            -> a still sprite
-  //   Art/<folder>/<frames>.png -> one animation; frames play in filename order (walk1, walk2, … walk10)
+  //   Art/<file>.png               -> a still sprite
+  //   Art/<folder>/<frames>.png    -> one animation; frames play in filename order (walk1, walk2, … walk10)
+  //   Art/**/<name>.ase / .aseprite -> a LibreSprite/Aseprite file, anywhere under Art/; it is its own item,
+  //                                   a still if it has one frame, an animation (with its own timing) if more
   const OWNER = "TheCosmicKitchen", REPO = "pixel-patisserie", BRANCH = "main", ROOT = "Art/";
   const IMAGE_EXT = /\.(png|gif|webp|jpe?g|bmp|svg)$/i;
+  const ASE_EXT = /\.(ase|aseprite)$/i;
   const FALLBACK = ["Art/oven8.png"]; // used if the GitHub API can't be reached
-  const MENU_FPS = 8;
+  const FOLDER_FRAME_MS = 125;        // folder animations play at 8 fps
+  const SPEEDS = [0.25, 0.33, 0.5, 0.75, 1, 1.5, 2, 3, 4];
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const COURSES = [
@@ -272,7 +280,7 @@
       const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`);
       if (!r.ok) throw new Error(r.status);
       const data = await r.json();
-      return data.tree.filter(t => t.type === "blob" && t.path.startsWith(ROOT) && IMAGE_EXT.test(t.path))
+      return data.tree.filter(t => t.type === "blob" && t.path.startsWith(ROOT) && (IMAGE_EXT.test(t.path) || ASE_EXT.test(t.path)))
                       .map(t => ({ path: t.path, size: t.size }));
     } catch (e) {
       return FALLBACK.map(path => ({ path }));
@@ -282,41 +290,106 @@
   const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
   const pretty = (s) => s.replace(/[-_]+/g, " ").trim().replace(/(\D)(\d+)$/, "$1 #$2").replace(/\b\w/g, c => c.toUpperCase());
   const slug = (path) => path.slice(ROOT.length).replace(/\/$/, "").replace(/\.[^./]+$/, "");
+  const stripExt = (file) => file.replace(/\.[^.]+$/, "");
 
-  function srcFor(path) {
-    // On the hosted page (or a local server) read files next to the page; otherwise straight from GitHub.
-    const sameSite = location.hostname.endsWith("github.io") || location.hostname === "localhost";
-    return sameSite ? path : `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${path.split("/").map(encodeURIComponent).join("/")}`;
-  }
+  // Files are read from next to the page on the hosted site (or a local server). GitHub's raw file
+  // server is the backup: it has a push the moment it lands, before Pages finishes rebuilding.
+  const rawUrl = (path) => `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const sameSite = location.hostname.endsWith("github.io") || location.hostname === "localhost";
+  const srcFor = (path) => sameSite ? path.split("/").map(encodeURIComponent).join("/") : rawUrl(path);
 
   function buildItems(files) {
-    const stills = [], anims = new Map();
+    const items = [], anims = new Map();
     for (const f of files) {
       const rel = f.path.slice(ROOT.length);
       const cut = rel.lastIndexOf("/");
-      const frame = { ...f, file: rel.slice(cut + 1), src: srcFor(f.path) };
-      if (cut < 0) {
-        stills.push({ kind: "still", name: pretty(frame.file.replace(/\.[^.]+$/, "")), path: f.path, frames: [frame] });
+      const file = rel.slice(cut + 1);
+      if (ASE_EXT.test(file)) {
+        items.push({ kind: "still", name: pretty(stripExt(file)), path: f.path, source: { ...f, file }, frames: [], tags: [] });
+      } else if (cut < 0) {
+        items.push({ kind: "still", name: pretty(stripExt(file)), path: f.path, frames: [frameOf(f, file)], tags: [] });
       } else {
         const folder = rel.slice(0, cut);
-        if (!anims.has(folder)) anims.set(folder, { kind: "anim", name: pretty(folder.split("/").pop()), path: ROOT + folder + "/", frames: [] });
-        anims.get(folder).frames.push(frame);
+        if (!anims.has(folder)) anims.set(folder, { kind: "anim", name: pretty(folder.split("/").pop()), path: ROOT + folder + "/", frames: [], tags: [] });
+        anims.get(folder).frames.push(frameOf(f, file));
       }
     }
     for (const a of anims.values()) a.frames.sort((x, y) => byName(x.file, y.file));
-    const all = [...stills, ...anims.values()].sort((a, b) => byName(a.name, b.name));
+    const all = [...items, ...anims.values()].sort((a, b) => byName(a.name, b.name));
     for (const i of all) i.id = slug(i.path);
     return all;
   }
 
+  function frameOf(f, file) {
+    return { path: f.path, size: f.size, file, src: srcFor(f.path), backup: rawUrl(f.path), duration: FOLDER_FRAME_MS };
+  }
+
+  async function fetchBytes(path) {
+    for (const url of new Set([srcFor(path), rawUrl(path)])) {
+      try { const r = await fetch(url); if (r.ok) return await r.arrayBuffer(); } catch (e) {}
+    }
+    throw new Error(`Couldn't download ${path}`);
+  }
+
+  // Turns a LibreSprite/Aseprite file into frames the rest of the page can show like PNGs.
+  async function bake(item) {
+    try {
+      const sprite = await readAse(await fetchBytes(item.source.path));
+      const base = stripExt(item.source.file);
+      item.frames = await Promise.all(sprite.frames.map(async (f, i) => {
+        const blob = await new Promise(res => f.canvas.toBlob(res, "image/png"));
+        const src = URL.createObjectURL(blob);
+        const file = sprite.frames.length > 1 ? `${base}-frame${i + 1}.png` : `${base}.png`;
+        return { path: item.source.path, size: blob.size, file, src, backup: src, duration: f.duration };
+      }));
+      item.tags = sprite.tags.filter(t => t.from <= t.to && t.to < item.frames.length);
+      item.kind = item.frames.length > 1 ? "anim" : "still";
+      item.w = sprite.width; item.h = sprite.height;
+    } catch (e) {
+      console.warn(item.source.path, e);
+      item.broken = true;
+    }
+  }
+
+  // Shows the backup copy when the first source fails, and a cupcake when both do.
+  function loadImage(img, frame, onBurnt) {
+    img.addEventListener("error", function retry() {
+      if (frame.backup && img.src !== new URL(frame.backup, location.href).href) { img.src = frame.backup; return; }
+      img.removeEventListener("error", retry);
+      onBurnt();
+    });
+    img.src = frame.src;
+  }
+
+  // ---------- Animation timing ----------
+  // Every frame carries its own duration (from the .ase file, or 125 ms for folder animations).
+  // A loop is the list of frame indices to play: all frames, or one tag's range in its direction.
+  function loopFor(item, tag) {
+    if (!tag) return item.frames.map((_, i) => i);
+    const fwd = [];
+    for (let i = tag.from; i <= tag.to; i++) fwd.push(i);
+    const rev = [...fwd].reverse();
+    switch (tag.direction) {
+      case 1: return rev;                                            // reverse
+      case 2: return [...fwd, ...rev.slice(1, -1)];                  // ping-pong
+      case 3: return [...rev, ...fwd.slice(1, -1)];                  // ping-pong, reversed
+      default: return fwd;
+    }
+  }
+
   // ---------- The menu ----------
-  const playing = new Set(); // menu thumbnails of animations, ticking on one shared clock
-  let tick = 0;
-  setInterval(() => {
-    if (reduceMotion || !$("plateView").hidden) return;
-    tick++;
-    for (const p of playing) p.img.src = p.item.frames[tick % p.item.frames.length].src;
-  }, 1000 / MENU_FPS);
+  const playing = new Set(); // menu thumbnails of animations: { img, item, step, due }
+  (function menuClock(now) {
+    if (!reduceMotion && $("plateView").hidden) {
+      for (const p of playing) {
+        if (now < p.due) continue;
+        p.step = (p.step + 1) % p.item.frames.length;
+        p.img.src = p.item.frames[p.step].src;
+        p.due = now + p.item.frames[p.step].duration;
+      }
+    }
+    requestAnimationFrame(menuClock);
+  })(performance.now());
 
   function renderMenu() {
     const q = $("search").value.trim().toLowerCase();
@@ -348,7 +421,7 @@
     li.className = "item";
     li.innerHTML = `
       <a>
-        <span class="mini"><img class="px" loading="lazy" alt=""></span>
+        <span class="mini"><img class="px" alt=""></span>
         <span>
           <span class="line"><span class="name"></span><span class="leader"></span><span class="price"></span></span>
           <span class="desc"></span>
@@ -358,47 +431,60 @@
     li.querySelector(".name").textContent = item.name;
     li.querySelector(".desc").textContent = item.path;
     const price = li.querySelector(".price");
-    const anim = item.kind === "anim";
-    price.textContent = anim ? `${item.frames.length} frames` : "…";
     const img = li.querySelector("img");
-    img.addEventListener("load", () => {
-      item.w = img.naturalWidth; item.h = img.naturalHeight;
-      if (!anim) price.textContent = `${item.w}×${item.h}`;
-    }, { once: true });
-    img.addEventListener("error", () => {
-      // Missing or unreadable file: show a cupcake on the plate instead of a broken-image icon.
-      playing.forEach(p => { if (p.img === img) playing.delete(p); });
+    const burnt = () => {
+      for (const p of playing) if (p.img === img) playing.delete(p);
       img.replaceWith(Object.assign(document.createElement("span"), { textContent: "🧁", title: "Couldn't load this one", ariaHidden: "true" }));
       price.textContent = "burnt";
+    };
+    if (item.broken || !item.frames.length) { burnt(); return li; }
+
+    const anim = item.kind === "anim";
+    price.textContent = anim ? `${item.frames.length} frames` : "…";
+    img.addEventListener("load", () => {
+      item.w ??= img.naturalWidth; item.h ??= img.naturalHeight;
+      if (!anim) price.textContent = `${item.w}×${item.h}`;
     }, { once: true });
-    img.src = item.frames[0].src;
-    if (anim) playing.add({ img, item });
+    loadImage(img, item.frames[0], burnt);
+    if (anim) playing.add({ img, item, step: 0, due: performance.now() + item.frames[0].duration });
     return li;
   }
 
   // ---------- One item, served ----------
-  let current = null, frameIdx = 0, timer = null, fps = 8;
+  let current = null, loop = [], step = 0, timer = null, speedIdx = 4;
 
-  function showFrame(i) {
-    const frames = current.frames;
-    frameIdx = (i + frames.length) % frames.length;
-    const f = frames[frameIdx];
+  function showStep(s) {
+    step = (s + loop.length) % loop.length;
+    const frameIdx = loop[step];
+    const f = current.frames[frameIdx];
     $("plateImg").src = f.src;
     $("download").href = f.src;
     $("download").setAttribute("download", f.file);
-    if (frames.length > 1) {
-      $("frameNo").textContent = `${frameIdx + 1} / ${frames.length}`;
+    if (current.frames.length > 1) {
+      $("frameNo").textContent = `${frameIdx + 1} / ${current.frames.length}`;
       [...$("filmstrip").children].forEach((b, j) => b.setAttribute("aria-current", String(j === frameIdx)));
     }
-    const kb = f.size ? ` · ${(f.size / 1024).toFixed(1)} KB` : "";
-    $("plateMeta").textContent = `${current.w ?? "?"}×${current.h ?? "?"}px${kb} · ${f.path}`;
+    const size = f.size ? ` · ${(f.size / 1024).toFixed(1)} KB` : "";
+    const ms = current.frames.length > 1 ? ` · ${f.duration} ms` : "";
+    $("plateMeta").textContent = `${current.w ?? "?"}×${current.h ?? "?"}px${ms}${size} · ${f.path}`;
   }
 
   function setPlaying(on) {
-    clearInterval(timer); timer = null;
-    if (on) timer = setInterval(() => showFrame(frameIdx + 1), 1000 / fps);
+    clearTimeout(timer); timer = null;
     $("playPause").textContent = on ? "❚❚" : "▶";
     $("playPause").setAttribute("aria-label", on ? "Pause" : "Play");
+    if (!on) return;
+    const next = () => {
+      timer = setTimeout(() => { showStep(step + 1); next(); }, current.frames[loop[step]].duration / SPEEDS[speedIdx]);
+    };
+    next();
+  }
+  const isPlaying = () => timer !== null;
+
+  function goToFrame(frameIdx) {
+    const s = loop.indexOf(frameIdx);
+    if (s < 0) { loop = loopFor(current); markTag(null); showStep(frameIdx); }
+    else showStep(s);
   }
 
   function setZoom(z) {
@@ -408,14 +494,46 @@
     for (const b of $("zooms").children) b.setAttribute("aria-pressed", String(+b.dataset.z === z));
   }
 
+  function markTag(tag) {
+    for (const b of $("tags").children) b.setAttribute("aria-pressed", String(b._tag === tag));
+  }
+
+  function playTag(tag) {
+    loop = loopFor(current, tag);
+    markTag(tag);
+    showStep(0);
+    setPlaying(!reduceMotion);
+  }
+
   function serve(item) {
     current = item;
+    loop = loopFor(item);
     const anim = item.frames.length > 1;
     $("plateName").textContent = item.name;
-    $("plateNote").textContent = anim ? `an animation in ${item.frames.length} frames` : "a still sprite";
+    $("plateNote").textContent = item.broken ? "this one came out of the oven burnt"
+      : anim ? `an animation in ${item.frames.length} frames` : "a still sprite";
     $("plateImg").alt = item.name;
+    $("plateImg").hidden = !!item.broken;
     $("animControls").hidden = !anim;
     $("filmstrip").hidden = !anim;
+    $("download").hidden = !!item.broken;
+    $("source").hidden = !item.source;
+    if (item.source) {
+      $("source").href = srcFor(item.source.path);
+      $("source").setAttribute("download", item.source.file);
+      $("source").textContent = `Original .${item.source.file.split(".").pop()} ↓`;
+    }
+
+    $("tags").innerHTML = "";
+    $("tags").hidden = !anim || !item.tags.length;
+    if (anim && item.tags.length) for (const tag of [null, ...item.tags]) {
+      const b = document.createElement("button");
+      b.className = "pill"; b.type = "button"; b._tag = tag;
+      b.textContent = tag ? tag.name : "All frames";
+      b.addEventListener("click", () => playTag(tag));
+      $("tags").append(b);
+    }
+    markTag(null);
 
     $("filmstrip").innerHTML = "";
     if (anim) item.frames.forEach((f, j) => {
@@ -423,11 +541,13 @@
       b.type = "button"; b.title = f.file; b.setAttribute("aria-label", `Frame ${j + 1}`);
       b.innerHTML = `<img class="px" alt="">`;
       b.firstChild.src = f.src;
-      b.addEventListener("click", () => { setPlaying(false); showFrame(j); });
+      b.addEventListener("click", () => { setPlaying(false); goToFrame(j); });
       $("filmstrip").append(b);
     });
 
     $("zooms").innerHTML = "";
+    if (item.broken) { $("plateMeta").textContent = `Couldn't read ${item.path}`; setPlaying(false); return; }
+
     const probe = new Image();
     probe.onload = () => {
       if (current !== item) return;
@@ -440,29 +560,30 @@
       }
       const room = Math.min(520, $("plateView").clientWidth - 50);
       setZoom([8, 4, 2, 1].find(z => item.w * z <= room && item.h * z <= 380) || 1);
-      showFrame(frameIdx);
+      showStep(step);
     };
-    probe.src = item.frames[0].src;
+    loadImage(probe, item.frames[0], () => {});
+    loadImage($("plateImg"), item.frames[0], () => { $("plateMeta").textContent = `Couldn't load ${item.path}`; });
 
-    showFrame(0);
+    showStep(0);
     setPlaying(anim && !reduceMotion);
   }
 
-  $("playPause").addEventListener("click", () => setPlaying(!timer));
-  $("prevFrame").addEventListener("click", () => { setPlaying(false); showFrame(frameIdx - 1); });
-  $("nextFrame").addEventListener("click", () => { setPlaying(false); showFrame(frameIdx + 1); });
-  $("fps").addEventListener("input", (e) => {
-    fps = +e.target.value;
-    $("fpsLabel").textContent = `${fps} fps`;
-    if (timer) setPlaying(true);
+  $("playPause").addEventListener("click", () => setPlaying(!isPlaying()));
+  $("prevFrame").addEventListener("click", () => { setPlaying(false); showStep(step - 1); });
+  $("nextFrame").addEventListener("click", () => { setPlaying(false); showStep(step + 1); });
+  $("speed").addEventListener("input", (e) => {
+    speedIdx = +e.target.value;
+    $("speedLabel").textContent = `${SPEEDS[speedIdx]}×`;
+    if (isPlaying()) setPlaying(true);
   });
   document.addEventListener("keydown", (e) => {
     if ($("plateView").hidden) return;
     if (e.key === "Escape") { location.hash = ""; return; }
     if (!current || current.frames.length < 2) return;
-    if (e.key === "ArrowLeft") { setPlaying(false); showFrame(frameIdx - 1); }
-    else if (e.key === "ArrowRight") { setPlaying(false); showFrame(frameIdx + 1); }
-    else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); setPlaying(!timer); }
+    if (e.key === "ArrowLeft") { setPlaying(false); showStep(step - 1); }
+    else if (e.key === "ArrowRight") { setPlaying(false); showStep(step + 1); }
+    else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); setPlaying(!isPlaying()); }
   });
 
   // ---------- Routing: #<item> serves that item, no hash shows the menu ----------
@@ -507,8 +628,9 @@
 
   $("search").addEventListener("input", renderMenu);
 
-  function load(files) {
+  async function load(files) {
     items = buildItems(files);
+    await Promise.all(items.filter(i => i.source).map(bake));
     renderMenu();
     route();
   }
